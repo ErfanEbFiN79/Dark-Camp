@@ -38,6 +38,34 @@ public class PlayerController : MonoBehaviourPunCallbacks
     [SerializeField] private float jumpForce;
     [SerializeField] private float gravityMod;
 
+    [Header("Fire effect")]
+    [SerializeField] private ParticleSystem fireEffect;
+    [SerializeField] private ParticleSystem electEffect;
+
+    [Header("Fire Setting")] 
+    [SerializeField] private float timeBtwShoots;
+    [SerializeField] private float timeBtwShootsH2;
+    private float shotCounterH1;
+    private float shotCounterH2;
+
+    [Header("Heat Setting Gun 1")]
+    [SerializeField] private float maxHeat;
+    [SerializeField] private float heatPerShot; // per shot how mush add
+    [SerializeField] private float coolRate;
+    [SerializeField] private float overHeatCoolRate;
+    private float heatCounter; // for show
+    private bool overHeated;
+    
+    [Header("Heat Setting Gun 2")]
+    [SerializeField] private float maxHeat2;
+    [SerializeField] private float heatPerShot2; // per shot how mush add
+    [SerializeField] private float coolRate2;
+    [SerializeField] private float overHeatCoolRate2;
+    private float heatCounter2; // for show
+    private bool overHeated2;
+    
+    
+    
     
 
  
@@ -159,10 +187,72 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
     private void ManageShot()
     {
-        if (Input.GetMouseButton(0))
+        if (!overHeated)
         {
-            Shot();
+            if (Input.GetMouseButtonDown(0))
+            {
+                Shot();
+            }
+        
+            if (Input.GetMouseButton(0))
+            {
+                shotCounterH1 -= Time.deltaTime;
+                if (shotCounterH1 <= 0)
+                {
+                    Shot();
+                }
+
+            }
+
+            heatCounter -= coolRate * Time.deltaTime;
         }
+        else
+        {
+            heatCounter -= overHeatCoolRate * Time.deltaTime;
+            if (heatCounter <= 0)
+            {
+                overHeated = false;
+            }
+        }
+
+        if (!overHeated2)
+        {
+            
+            if (Input.GetMouseButtonDown(1))
+            {
+                Shot2();
+            }
+
+            if (Input.GetMouseButton(1))
+            {
+                shotCounterH2 -= Time.deltaTime;
+                if (shotCounterH2 <= 0)
+                {
+                    Shot2();
+                }
+
+            }
+        }
+        else
+        {
+            heatCounter2 -= overHeatCoolRate2 * Time.deltaTime;
+            if (heatCounter2 <= 0)
+            {
+                overHeated2 = false;
+            }
+        }
+        
+        if (heatCounter <= 0)
+        {
+            heatCounter = 0;
+        }
+        
+        if (heatCounter2 <= 0)
+        {
+            heatCounter2 = 0;
+        }
+        
+        heatCounter2 -= coolRate2 * Time.deltaTime;
     }
 
 
@@ -227,7 +317,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
     {
         Ray ray = cam.ViewportPointToRay(
             new Vector3(
-                0.5f,
+                0.6f,
                 0.5f,
                 0
             )
@@ -236,7 +326,53 @@ public class PlayerController : MonoBehaviourPunCallbacks
         ray.origin = cam.transform.position;
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            Debug.Log($"we hit" + hit.collider.gameObject.name);
+            Instantiate(
+                fireEffect,
+                hit.point,
+                Quaternion.identity
+            );
+        }
+
+        shotCounterH1 = timeBtwShoots;
+
+        heatCounter += heatPerShot;
+        if (heatCounter >= maxHeat)
+        {
+            heatCounter = maxHeat;
+
+            overHeated = true;
+            
+        }
+    }
+
+    private void Shot2()
+    {
+        Ray ray = cam.ViewportPointToRay(
+            new Vector3(
+                0.4f,
+                0.5f,
+                0
+            )
+        );
+
+        ray.origin = cam.transform.position;
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            Instantiate(
+                electEffect,
+                hit.point,
+                Quaternion.identity
+            );
+        }
+        shotCounterH2 = timeBtwShootsH2;
+        
+        heatCounter2 += heatPerShot2;
+        if (heatCounter2 >= maxHeat2)
+        {
+            heatCounter2 = maxHeat2;
+
+            overHeated2 = true;
+            
         }
     }
 
