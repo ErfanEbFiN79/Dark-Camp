@@ -39,18 +39,14 @@ public class PlayerController : MonoBehaviourPunCallbacks
     [SerializeField] private float gravityMod;
 
     [Header("Fire effect")]
-    [SerializeField] private ParticleSystem fireEffect;
-    [SerializeField] private ParticleSystem electEffect;
-
-    [Header("Fire Setting")] 
-    [SerializeField] private float timeBtwShoots;
-    [SerializeField] private float timeBtwShootsH2;
+    [SerializeField] private ParticleSystem[] effectsGunOne;
+    [SerializeField] private ParticleSystem[] effectsGunTwo;
+    
     private float shotCounterH1;
     private float shotCounterH2;
 
     [Header("Heat Setting Gun 1")]
     [SerializeField] private float maxHeat;
-    [SerializeField] private float heatPerShot; // per shot how mush add
     [SerializeField] private float coolRate;
     [SerializeField] private float overHeatCoolRate;
     private float heatCounter; // for show
@@ -58,17 +54,21 @@ public class PlayerController : MonoBehaviourPunCallbacks
     
     [Header("Heat Setting Gun 2")]
     [SerializeField] private float maxHeat2;
-    [SerializeField] private float heatPerShot2; // per shot how mush add
     [SerializeField] private float coolRate2;
     [SerializeField] private float overHeatCoolRate2;
     private float heatCounter2; // for show
     private bool overHeated2;
-    
-    
-    
-    
 
- 
+    [Header("Gun Manager")] 
+    [SerializeField] private Gun[] gunsHandOne;
+    [SerializeField] private Gun[] gunsHandTwo;
+    [SerializeField] private GameObject[] gunsSelectShow;
+    private int hand = 0;
+    private int selectedGun1;
+    private int selectedGun2;
+    
+    
+    
     #endregion  
 
     #region Unity Methods
@@ -79,6 +79,18 @@ public class PlayerController : MonoBehaviourPunCallbacks
         Cursor.lockState = CursorLockMode.Locked;
         cam = Camera.main;
         cR = GetComponent<CharacterController>();
+        // foreach (var obj in UiController.instance.GunSlider1)
+        // {
+        //     obj.maxValue = maxHeat;
+        // }
+        // foreach (var obj in UiController.instance.GunSlider1H2)
+        // {
+        //     obj.maxValue = maxHeat2;
+        // }
+        UiController.instance.GunSlider1.maxValue = maxHeat;
+        UiController.instance.GunSlider1H2.maxValue = maxHeat2;
+        
+        SwitchGun();
     }
 
     private void Update()
@@ -102,6 +114,10 @@ public class PlayerController : MonoBehaviourPunCallbacks
         
         // Shot
         ManageShot();
+        
+        // Manage guns
+        ManageHands();
+        ManageGuns();
         
     }
     
@@ -189,6 +205,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
     {
         if (!overHeated)
         {
+            UiController.instance.GT1.gameObject.SetActive(false);
             if (Input.GetMouseButtonDown(0))
             {
                 Shot();
@@ -208,6 +225,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
         }
         else
         {
+            UiController.instance.GT1.gameObject.SetActive(true);
             heatCounter -= overHeatCoolRate * Time.deltaTime;
             if (heatCounter <= 0)
             {
@@ -217,7 +235,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
         if (!overHeated2)
         {
-            
+            UiController.instance.GT2.gameObject.SetActive(false);
             if (Input.GetMouseButtonDown(1))
             {
                 Shot2();
@@ -235,6 +253,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
         }
         else
         {
+            UiController.instance.GT2.gameObject.SetActive(true);
             heatCounter2 -= overHeatCoolRate2 * Time.deltaTime;
             if (heatCounter2 <= 0)
             {
@@ -253,8 +272,96 @@ public class PlayerController : MonoBehaviourPunCallbacks
         }
         
         heatCounter2 -= coolRate2 * Time.deltaTime;
+        
+        UiController.instance.GunSlider1.value = heatCounter;
+        UiController.instance.GunSlider1H2.value = heatCounter2;
     }
 
+    private void ManageHands()
+    {
+        if (Input.GetKeyDown(KeyCode.X))
+        {
+            hand = hand == 0 ? 1 : 0;
+        }
+    }
+
+    private void ManageGuns()
+    {
+        foreach (var obj in gunsSelectShow)
+        {
+            obj.SetActive(false);
+        }
+        
+        gunsSelectShow[hand].SetActive(true);
+        
+        if (Input.GetAxisRaw("Mouse ScrollWheel") > 0)
+        {
+            if (hand == 0)
+            {
+                selectedGun1++;
+
+                if (selectedGun1 >= gunsHandOne.Length)
+                {
+                    selectedGun1 = 0;
+                }
+            }
+            else if(hand == 1)
+            {
+                selectedGun2++;
+
+                if (selectedGun2 >= gunsHandTwo.Length)
+                {
+                    selectedGun2 = 0;
+                }
+            }
+            SwitchGun();
+        }
+        else if (Input.GetAxisRaw("Mouse ScrollWheel") < 0)
+        {
+            if (hand == 0)
+            {
+                selectedGun1--;
+
+                if (selectedGun1 < 0)
+                {
+                    selectedGun1 = gunsHandOne.Length - 1;
+                }
+            }
+            else if(hand == 1)
+            {
+                selectedGun2--;
+
+                if (selectedGun2 < 0)
+                {
+                    selectedGun2 = gunsHandTwo.Length - 1;
+                }
+            }
+            SwitchGun();
+        }
+
+        if (hand == 0)
+        {
+            for (int i = 0; i < gunsHandOne.Length; i++)
+            {
+                if (Input.GetKeyDown((i + 1).ToString()))
+                {
+                    selectedGun1 = i;
+                    SwitchGun();
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < gunsHandTwo.Length; i++)
+            {
+                if (Input.GetKeyDown((i + 1).ToString()))
+                {
+                    selectedGun2 = i;
+                    SwitchGun();
+                }
+            }
+        }
+    }
 
     #endregion
 
@@ -327,15 +434,15 @@ public class PlayerController : MonoBehaviourPunCallbacks
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
             Instantiate(
-                fireEffect,
+                effectsGunOne[selectedGun1],
                 hit.point,
                 Quaternion.identity
             );
         }
 
-        shotCounterH1 = timeBtwShoots;
+        shotCounterH1 = gunsHandOne[selectedGun1].TimeBtwShot;
 
-        heatCounter += heatPerShot;
+        heatCounter += gunsHandOne[selectedGun1].HeatPerShot;
         if (heatCounter >= maxHeat)
         {
             heatCounter = maxHeat;
@@ -359,14 +466,13 @@ public class PlayerController : MonoBehaviourPunCallbacks
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
             Instantiate(
-                electEffect,
+                effectsGunTwo[selectedGun2],
                 hit.point,
                 Quaternion.identity
             );
         }
-        shotCounterH2 = timeBtwShootsH2;
-        
-        heatCounter2 += heatPerShot2;
+        shotCounterH2 = gunsHandTwo[selectedGun2].TimeBtwShot;
+        heatCounter2 += gunsHandTwo[selectedGun2].HeatPerShot;
         if (heatCounter2 >= maxHeat2)
         {
             heatCounter2 = maxHeat2;
@@ -376,6 +482,21 @@ public class PlayerController : MonoBehaviourPunCallbacks
         }
     }
 
+    private void SwitchGun()
+    {
+        foreach (Gun gun in gunsHandOne)
+        {
+            gun.gameObject.SetActive(false);
+        }
+        
+        foreach (Gun gun in gunsHandTwo)
+        {
+            gun.gameObject.SetActive(false);
+        }
+        
+        gunsHandOne[selectedGun1].gameObject.SetActive(true);
+        gunsHandTwo[selectedGun2].gameObject.SetActive(true);
+    }
     
 
     #endregion
