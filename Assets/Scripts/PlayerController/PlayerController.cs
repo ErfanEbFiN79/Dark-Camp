@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using Photon.Pun;
 using TMPro;
+using UnityEngine.UI;
 
 public class PlayerController : MonoBehaviourPunCallbacks
 {
@@ -63,11 +64,18 @@ public class PlayerController : MonoBehaviourPunCallbacks
     [SerializeField] private Gun[] gunsHandOne;
     [SerializeField] private Gun[] gunsHandTwo;
     [SerializeField] private GameObject[] gunsSelectShow;
+    [SerializeField] private Slider slider1;
+    [SerializeField] private Slider slider2;
     private int hand = 0;
     private int selectedGun1;
     private int selectedGun2;
-    
-    
+
+    [Header("Impact")] 
+    [SerializeField] private GameObject heatImpact;
+
+    [Header("Hp")] 
+    [SerializeField] private float maxHp;
+    private float currentHp;
     
     #endregion  
 
@@ -79,52 +87,63 @@ public class PlayerController : MonoBehaviourPunCallbacks
         Cursor.lockState = CursorLockMode.Locked;
         cam = Camera.main;
         cR = GetComponent<CharacterController>();
-        // foreach (var obj in UiController.instance.GunSlider1)
-        // {
-        //     obj.maxValue = maxHeat;
-        // }
-        // foreach (var obj in UiController.instance.GunSlider1H2)
-        // {
-        //     obj.maxValue = maxHeat2;
-        // }
-        UiController.instance.GunSlider1.maxValue = maxHeat;
-        UiController.instance.GunSlider1H2.maxValue = maxHeat2;
+        slider1.maxValue = maxHeat;
+        slider2.maxValue = maxHeat2;
+        currentHp = maxHp;
+
+        if (photonView.IsMine)
+        {
+            UiController.instance.hpSlider.maxValue = maxHp;
+            UiController.instance.hpSlider.value = currentHp;
+        }
+
+
+        //SwitchGun();
         
-        SwitchGun();
+        photonView.RPC("SetGun1",RpcTarget.All, selectedGun1);
+        photonView.RPC("SetGun2",RpcTarget.All, selectedGun2);
+        
     }
 
     private void Update()
     {
-  
-        // Get data
-        GetData();
+
+        if (photonView.IsMine)
+        {
+            // Get data
+            GetData();
             
-        // Rotate
-        RotatePlayer();
-        RotateGun();
+            // Rotate
+            RotatePlayer();
+            RotateGun();
         
-        // Move
-        ManageMove();
+            // Move
+            ManageMove();
         
-        //Gravity
-        ManageGravity();
+            //Gravity
+            ManageGravity();
         
-        // Mouse
-        FreeMouse();
+            // Mouse
+            FreeMouse();
         
-        // Shot
-        ManageShot();
+            // Shot
+            ManageShot();
         
-        // Manage guns
-        ManageHands();
-        ManageGuns();
+            // Manage guns
+            ManageHands();
+            ManageGuns();
+        }
+
         
     }
     
     private void LateUpdate()
-    {   
-        cam.transform.position = viewPoint.position;
-        cam.transform.rotation = viewPoint.rotation;
+    {
+        if (photonView.IsMine)
+        {
+            cam.transform.position = viewPoint.position;
+            cam.transform.rotation = viewPoint.rotation;
+        }
     }
 
     #endregion
@@ -273,8 +292,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
         
         heatCounter2 -= coolRate2 * Time.deltaTime;
         
-        UiController.instance.GunSlider1.value = heatCounter;
-        UiController.instance.GunSlider1H2.value = heatCounter2;
+        slider1.value = heatCounter;
+        slider2.value = heatCounter2;
     }
 
     private void ManageHands()
@@ -314,7 +333,9 @@ public class PlayerController : MonoBehaviourPunCallbacks
                     selectedGun2 = 0;
                 }
             }
-            SwitchGun();
+            
+            photonView.RPC("SetGun1",RpcTarget.All, selectedGun1);
+            photonView.RPC("SetGun2",RpcTarget.All, selectedGun2);
         }
         else if (Input.GetAxisRaw("Mouse ScrollWheel") < 0)
         {
@@ -336,7 +357,9 @@ public class PlayerController : MonoBehaviourPunCallbacks
                     selectedGun2 = gunsHandTwo.Length - 1;
                 }
             }
-            SwitchGun();
+            photonView.RPC("SetGun1",RpcTarget.All, selectedGun1);
+            photonView.RPC("SetGun2",RpcTarget.All, selectedGun2);
+            
         }
 
         if (hand == 0)
@@ -346,7 +369,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
                 if (Input.GetKeyDown((i + 1).ToString()))
                 {
                     selectedGun1 = i;
-                    SwitchGun();
+                    photonView.RPC("SetGun1",RpcTarget.All, selectedGun1);
+                    photonView.RPC("SetGun2",RpcTarget.All, selectedGun2);
                 }
             }
         }
@@ -357,12 +381,13 @@ public class PlayerController : MonoBehaviourPunCallbacks
                 if (Input.GetKeyDown((i + 1).ToString()))
                 {
                     selectedGun2 = i;
-                    SwitchGun();
+                    photonView.RPC("SetGun1",RpcTarget.All, selectedGun1);
+                    photonView.RPC("SetGun2",RpcTarget.All, selectedGun2);
                 }
             }
         }
     }
-
+    
     #endregion
 
     #region Actions
@@ -433,11 +458,26 @@ public class PlayerController : MonoBehaviourPunCallbacks
         ray.origin = cam.transform.position;
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            Instantiate(
-                effectsGunOne[selectedGun1],
-                hit.point,
-                Quaternion.identity
-            );
+            if (hit.collider.gameObject.CompareTag("Player"))
+            {
+                hit.collider.gameObject.GetPhotonView().RPC("DealDamage",RpcTarget.All, photonView.Owner.NickName, gunsHandOne[selectedGun1].Damage);
+                PhotonNetwork.Instantiate(
+                    heatImpact.name,
+                    hit.point,
+                    Quaternion.identity
+                );
+            }
+            else
+            {
+                Instantiate(
+                    effectsGunOne[selectedGun1],
+                    hit.point,
+                    Quaternion.identity
+                );
+            }
+
+
+            
         }
 
         shotCounterH1 = gunsHandOne[selectedGun1].TimeBtwShot;
@@ -465,11 +505,27 @@ public class PlayerController : MonoBehaviourPunCallbacks
         ray.origin = cam.transform.position;
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
-            Instantiate(
-                effectsGunTwo[selectedGun2],
-                hit.point,
-                Quaternion.identity
-            );
+
+            if (hit.collider.gameObject.CompareTag("Player"))
+            {
+                hit.collider.gameObject.GetPhotonView().RPC("DealDamage",RpcTarget.All, photonView.Owner.NickName, gunsHandTwo[selectedGun2].Damage);
+                PhotonNetwork.Instantiate(
+                    heatImpact.name,
+                    hit.point,
+                    Quaternion.identity
+                );
+            }
+            else
+            {
+                
+                Instantiate(
+                    effectsGunTwo[selectedGun2],
+                    hit.point,
+                    Quaternion.identity
+                );
+            }
+
+
         }
         shotCounterH2 = gunsHandTwo[selectedGun2].TimeBtwShot;
         heatCounter2 += gunsHandTwo[selectedGun2].HeatPerShot;
@@ -501,8 +557,54 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
     #endregion
 
+    #region RPC
 
-    
-    
+    [PunRPC]
+    private void DealDamage(string whoGetDamage, float damageAmount)
+    {
+        TakeDamage(whoGetDamage,damageAmount);
+    }
+
+    [PunRPC]
+    private void SetGun1(int gunToSwitchTo)
+    {
+        if (gunToSwitchTo < gunsHandOne.Length)
+        {
+            selectedGun1 = gunToSwitchTo;
+            SwitchGun();
+        }
+    }
+
+    [PunRPC]
+    private void SetGun2(int gunToSwitchTo)
+    {
+        if (gunToSwitchTo < gunsHandTwo.Length)
+        {
+            selectedGun2 = gunToSwitchTo;
+            SwitchGun();
+        }
+    }
+
+    #endregion
+
+    #region Damage System
+
+    private void TakeDamage(string whoGetDamage, float damageAmount)
+    {
+        if (photonView.IsMine)
+        {
+            // Debug.Log(photonView.Owner.NickName + " has been hit by " + whoGetDamage);
+            currentHp -= damageAmount;
+
+            if (currentHp <= 0)
+            {
+                SpawnPlayerNetwork.instance.Die(whoGetDamage);
+            }
+            UiController.instance.hpSlider.value = currentHp;
+        }
+
+    }
+
+    #endregion
     
 }

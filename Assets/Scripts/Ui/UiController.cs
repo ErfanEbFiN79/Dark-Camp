@@ -12,28 +12,27 @@ public class UiController : MonoBehaviour
     [SerializeField] private TMP_Text gT2;
 
     [Header("Slider Hand1")]
-    [SerializeField] private Slider gunSlider1;
-    
-    [Header("Slider Hand1")]
-    [SerializeField] private Slider gunSlider1H2;
-    
+    public Slider hpSlider;
+
+    [Header("Dead")] 
+    [SerializeField] private GameObject deathScreen;
+    [SerializeField] private TMP_Text deathText;
     
     public TMP_Text GT1 => gT1;
     public TMP_Text GT2 => gT2;
 
-
-    public Slider GunSlider1
+    public GameObject DeathScreen
     {
-        get => gunSlider1;
-        set => gunSlider1 = value;
+        get => deathScreen;
+        set => deathScreen = value;
     }
 
-
-    public Slider GunSlider1H2
+    public TMP_Text DeathText
     {
-        get => gunSlider1H2;
-        set => gunSlider1H2 = value;
+        get => deathText;
+        set => deathText = value;
     }
+    
 
     private void Awake()
     {
