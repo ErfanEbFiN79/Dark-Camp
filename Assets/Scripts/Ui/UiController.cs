@@ -17,6 +17,14 @@ public class UiController : MonoBehaviour
     [Header("Dead")] 
     [SerializeField] private GameObject deathScreen;
     [SerializeField] private TMP_Text deathText;
+
+    [Header("Info")] 
+    [SerializeField] private TMP_Text killNumberText;
+    [SerializeField] private TMP_Text deathNumberText;
+
+    [Header("Leaderboard")] 
+    [SerializeField] private GameObject leaderboard;
+    public LeaderboardManager leaderboardPlayerDisplay;
     
     public TMP_Text GT1 => gT1;
     public TMP_Text GT2 => gT2;
@@ -32,7 +40,31 @@ public class UiController : MonoBehaviour
         get => deathText;
         set => deathText = value;
     }
-    
+
+    public TMP_Text KillNumberText
+    {
+        get => killNumberText;
+        set => killNumberText = value;
+    }
+
+    public TMP_Text DeathNumberText
+    {
+        get => deathNumberText;
+        set => deathNumberText = value;
+    }
+
+    public GameObject LeaderboardPlayerDisplay
+    {
+        get => leaderboard;
+        set => leaderboard = value;
+    }
+
+    public GameObject Leaderboard
+    {
+        get => leaderboard;
+        set => leaderboard = value;
+    }
+
 
     private void Awake()
     {

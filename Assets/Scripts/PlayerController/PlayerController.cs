@@ -460,7 +460,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
         {
             if (hit.collider.gameObject.CompareTag("Player"))
             {
-                hit.collider.gameObject.GetPhotonView().RPC("DealDamage",RpcTarget.All, photonView.Owner.NickName, gunsHandOne[selectedGun1].Damage);
+                hit.collider.gameObject.GetPhotonView().RPC("DealDamage",RpcTarget.All, photonView.Owner.NickName,
+                    gunsHandOne[selectedGun1].Damage, PhotonNetwork.LocalPlayer.ActorNumber);
                 PhotonNetwork.Instantiate(
                     heatImpact.name,
                     hit.point,
@@ -508,7 +509,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
             if (hit.collider.gameObject.CompareTag("Player"))
             {
-                hit.collider.gameObject.GetPhotonView().RPC("DealDamage",RpcTarget.All, photonView.Owner.NickName, gunsHandTwo[selectedGun2].Damage);
+                hit.collider.gameObject.GetPhotonView().RPC("DealDamage",RpcTarget.All, photonView.Owner.NickName, gunsHandTwo[selectedGun2].Damage,
+                    PhotonNetwork.LocalPlayer.ActorNumber);
                 PhotonNetwork.Instantiate(
                     heatImpact.name,
                     hit.point,
@@ -560,9 +562,9 @@ public class PlayerController : MonoBehaviourPunCallbacks
     #region RPC
 
     [PunRPC]
-    private void DealDamage(string whoGetDamage, float damageAmount)
+    private void DealDamage(string whoGetDamage, float damageAmount, int actor)
     {
-        TakeDamage(whoGetDamage,damageAmount);
+        TakeDamage(whoGetDamage,damageAmount, actor);
     }
 
     [PunRPC]
@@ -589,7 +591,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
     #region Damage System
 
-    private void TakeDamage(string whoGetDamage, float damageAmount)
+    private void TakeDamage(string whoGetDamage, float damageAmount, int actor)
     {
         if (photonView.IsMine)
         {
@@ -598,12 +600,14 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
             if (currentHp <= 0)
             {
+                currentHp = 0;
                 SpawnPlayerNetwork.instance.Die(whoGetDamage);
+                MatchManager.instance.ChangeStatSend(actor,0,1);
             }
             UiController.instance.hpSlider.value = currentHp;
         }
 
-    }
+    } 
 
     #endregion
     

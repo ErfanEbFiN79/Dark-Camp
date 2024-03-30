@@ -49,6 +49,8 @@ public class SpawnPlayerNetwork : MonoBehaviourPunCallbacks
     {
         UiController.instance.DeathText.text = "You were killed by " + whoGiveDamage;
         
+        MatchManager.instance.ChangeStatSend(PhotonNetwork.LocalPlayer.ActorNumber, 1,1);
+        
         if (player != null)
         {
             StartCoroutine(DieCo());
