@@ -6,6 +6,7 @@ using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
 using UnityEngine.SceneManagement;
+using Random = UnityEngine.Random;
 
 public class GameLauncher : MonoBehaviourPunCallbacks
 {
@@ -24,13 +25,14 @@ public class GameLauncher : MonoBehaviourPunCallbacks
     [Header("Set Name")]
     [SerializeField] private GameObject nameInputScene;
     [SerializeField] private TMP_InputField nameInput;    
-    private bool hasSetNick;
+    private static bool hasSetNick;
     
     [Header("Create Room Setting")]  
     [SerializeField] private TMP_InputField nameCreateRoom;
     [SerializeField] private GameObject roomScene;
     [SerializeField] private TMP_Text roomNameText;
-    [SerializeField] private string levelToPlay;
+    public string[] levelToPlay;
+    public bool changeMapBtwRounds;
     [SerializeField] private GameObject startButton;
     
     [Header("Find Rooms")]
@@ -55,7 +57,8 @@ public class GameLauncher : MonoBehaviourPunCallbacks
     {
         LoadingManager(true, "Loading...");
         PhotonNetwork.ConnectUsingSettings();
-        
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     #endregion
@@ -265,14 +268,15 @@ public class GameLauncher : MonoBehaviourPunCallbacks
 
     private void StartGameAction()
     {
-        if (IsLevelLoaded(levelToPlay))
+        int level = Random.Range(0, levelToPlay.Length); 
+        if (IsLevelLoaded(levelToPlay[level]))
         {
-            PhotonNetwork.LoadLevel(levelToPlay);
+            PhotonNetwork.LoadLevel(levelToPlay[level]);
         }
         else
         {
             LoadingManager(true,"Jumping at the world");
-            StartCoroutine(LoadLevelAsync());
+            StartCoroutine(LoadLevelAsync(level));
         }
     }
 
@@ -297,9 +301,9 @@ public class GameLauncher : MonoBehaviourPunCallbacks
         return false;
     }
     
-    IEnumerator LoadLevelAsync()
+    IEnumerator LoadLevelAsync(int level)
     {
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(levelToPlay);
+        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(levelToPlay[level]);
         
         while (!asyncLoad.isDone)
         {

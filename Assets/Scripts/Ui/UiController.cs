@@ -25,6 +25,10 @@ public class UiController : MonoBehaviour
     [Header("Leaderboard")] 
     [SerializeField] private GameObject leaderboard;
     public LeaderboardManager leaderboardPlayerDisplay;
+
+    [Header("End Game")] 
+    [SerializeField] private GameObject endGameScene;
+    
     
     public TMP_Text GT1 => gT1;
     public TMP_Text GT2 => gT2;
@@ -65,6 +69,11 @@ public class UiController : MonoBehaviour
         set => leaderboard = value;
     }
 
+    public GameObject EndGameScene
+    {
+        get => endGameScene;
+        set => endGameScene = value;
+    }
 
     private void Awake()
     {

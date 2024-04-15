@@ -3568,7 +3568,10 @@ MonoBehaviour:
   nameCreateRoom: {fileID: 1491516136}
   roomScene: {fileID: 1535491497}
   roomNameText: {fileID: 165841880}
-  levelToPlay: Game Scene
+  levelToPlay:
+  - Game Scene
+  - Game Scene 2
+  changeMapBtwRounds: 1
   startButton: {fileID: 1297947763}
   roomBrowserScene: {fileID: 1703251757}
   theRoomButton: {fileID: 8471640732945541157}

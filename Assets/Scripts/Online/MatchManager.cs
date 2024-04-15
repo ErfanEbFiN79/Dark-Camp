@@ -1,10 +1,13 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Photon.Pun;
 using UnityEngine.SceneManagement;
 using Photon.Realtime;
 using ExitGames.Client.Photon;
+using Random = UnityEngine.Random;
 
 public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
 {
@@ -21,6 +24,7 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
         NewPlayer,
         ListPlayers,
         ChangeStat,
+        NextMatch,
     }
 
     
@@ -33,6 +37,23 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     
     private List<LeaderboardManager> lBoardPlayers = new List<LeaderboardManager>();
 
+    public enum StateOfGame
+    {
+        Waiting,
+        Playing,
+        Ending
+    }
+    
+    [SerializeField] private float killsNeedToEnd;
+    [SerializeField] private float waitAfterEnding;
+
+    public StateOfGame _stateOfGame { get; private set; }
+    public Transform mapCamPoint;
+    
+    
+    // continue match variables
+    [SerializeField] private bool _perpetual;
+
     #endregion
 
     #region Unity Methods
@@ -44,7 +65,7 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Tab))
+        if (Input.GetKeyDown(KeyCode.Tab) && _stateOfGame != StateOfGame.Ending)
         {
             if (UiController.instance.Leaderboard.activeInHierarchy)
             {
@@ -68,6 +89,8 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
         else
         {
             NewPlayerSend(PhotonNetwork.NickName);
+
+            _stateOfGame = StateOfGame.Playing;
         }
     }
 
@@ -98,6 +121,12 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
                 
                 case EventCodes.ChangeStat:
                     ChangeStateReceive(data);
+                    break;
+                
+                case EventCodes.NextMatch:
+                    
+                    NextMatchReceive();
+                    
                     break;
             }
         }
@@ -138,6 +167,11 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
         );
 
     public void ChangeStateReceive(object[] dataReceived) => ChangeStateReceiveAction(dataReceived);
+
+    public void NextMatchSend() => NextMatchSendAction();
+
+    public void NextMatchReceive() => NextMatchReceiveAction();
+    
     #endregion
 
     #region Manage event action
@@ -174,7 +208,9 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
 
     private void ListPlayersSendAction()
     {
-        object[] package = new object[allPlayers.Count];
+        object[] package = new object[allPlayers.Count + 1];
+
+        package[0] = _stateOfGame; 
 
         for (int i = 0; i < allPlayers.Count; i++)
         {
@@ -185,7 +221,7 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
             piece[2] = allPlayers[i].kill;
             piece[3] = allPlayers[i].death;
 
-            package[i] = piece;
+            package[i + 1] = piece;
         }
         PhotonNetwork.RaiseEvent(
             (byte)EventCodes.ListPlayers,
@@ -198,7 +234,10 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     private void ListPlayersReceiveAction(object[] dataReceived)
     {
         allPlayers.Clear();
-        for (int i = 0; i < dataReceived.Length; i++)
+
+        _stateOfGame = (StateOfGame)dataReceived[0];
+        
+        for (int i = 1; i < dataReceived.Length; i++)
         {
             object[] piece = (object[])dataReceived[i];
 
@@ -213,11 +252,11 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
 
             if (PhotonNetwork.LocalPlayer.ActorNumber == player.actor)
             {
-                index = i;
+                index = i - 1;
             }
         }
         
-        
+        StateCheck();
     }
 
     private void ChangeStatSendAction(int actorSending, int statToUpdate, int amountToChange)
@@ -246,12 +285,10 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
                 {
                     case 0:
                         allPlayers[i].kill += amount;
-                        Debug.Log($"Player {allPlayers[i].name} : Kills {allPlayers[i].kill}");
                         break;
                     
                     case 1:
                         allPlayers[i].death += amount;
-                        Debug.Log($"Player {allPlayers[i].name} : Death {allPlayers[i].death}");
                         break;
                 }
 
@@ -259,10 +296,42 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
                 {
                     UpdateStateDisplay();
                 }
+
+                if (UiController.instance.Leaderboard.activeInHierarchy)
+                {
+                    ShowLeaderboard();
+                }
                 
                 break;
             }
         }
+        
+        ScoreCheck();
+    }
+
+    private void NextMatchSendAction()
+    {
+        PhotonNetwork.RaiseEvent(
+            (byte)EventCodes.NextMatch,
+            null, // we don't need send data when we start a new match 
+            new RaiseEventOptions { Receivers = ReceiverGroup.All },
+            new SendOptions { Reliability = true }
+        );
+    }
+
+    private void NextMatchReceiveAction()
+    {
+        _stateOfGame = StateOfGame.Playing;
+        UiController.instance.EndGameScene.SetActive(false);
+        UiController.instance.Leaderboard.SetActive(false);
+        foreach (PlayerInfo player in allPlayers)
+        {
+            player.kill = 0;
+            player.death = 0;
+        }
+        UpdateStateDisplay();
+        
+        SpawnPlayerNetwork.instance.SpawnP();
     }
 
     #endregion
@@ -289,7 +358,7 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     {
         UiController.instance.Leaderboard.SetActive(true);
 
-        foreach (LeaderboardManager lp in lBoardPlayers)
+        foreach (var lp in lBoardPlayers)
         {
             Destroy(lp.gameObject);
         }
@@ -297,9 +366,9 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
         
         UiController.instance.leaderboardPlayerDisplay.gameObject.SetActive(false);
 
-        foreach (PlayerInfo player in allPlayers)
+        var sorted = SortPlayers(allPlayers);
+        foreach (PlayerInfo player in sorted)
         {
-            print("Work");
             LeaderboardManager newPlayerDisplay = Instantiate(
                 UiController.instance.leaderboardPlayerDisplay,
                 UiController.instance.leaderboardPlayerDisplay.transform.parent);
@@ -314,6 +383,129 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     }
     
     #endregion
+
+    #region Helper
+
+    private List<PlayerInfo> SortPlayers(List<PlayerInfo> players)
+    {
+        List<PlayerInfo> sortList = new List<PlayerInfo>();
+
+        while (sortList.Count < players.Count)
+        {
+            int high = -1;
+            PlayerInfo playerS = players[0];
+            foreach (var info in players.Where(info => !sortList.Contains(info)).Where(info => info.kill > high))
+            {
+                playerS = info;
+                high = info.kill;
+            }
+            
+            sortList.Add(playerS);
+        }
+        
+        return sortList;
+    }
+    
+    public override void OnLeftRoom()
+    {
+        base.OnLeftRoom();
+        // we use this be after end game all the player leave the game
+        SceneManager.LoadScene(0);
+    }
+
+    private void ScoreCheck()
+    {
+        bool winnerFound = false;
+
+        foreach (PlayerInfo player in allPlayers)
+        {
+            if (player.kill >= killsNeedToEnd && killsNeedToEnd > 0)
+            {
+                winnerFound = true;
+                break;
+            }
+        }
+
+        if (winnerFound)
+        {
+            if (PhotonNetwork.IsMasterClient && _stateOfGame != StateOfGame.Ending)
+            {
+                _stateOfGame = StateOfGame.Ending;
+                ListPlayersSend();
+            }
+        }
+    }
+
+    private void StateCheck()
+    {
+        if (_stateOfGame == StateOfGame.Ending)
+        {
+            EndGame();
+        }
+    }
+
+    private void EndGame()
+    {
+        _stateOfGame = StateOfGame.Ending;
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.DestroyAll();
+        }
+        
+        UiController.instance.DeathScreen.SetActive(false);
+        UiController.instance.EndGameScene.SetActive(true);
+        ShowLeaderboard();
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        Camera.main.transform.position = mapCamPoint.position;
+        Camera.main.transform.rotation = mapCamPoint.rotation;
+
+        StartCoroutine(EndCo());
+    }
+
+    private IEnumerator EndCo()
+    {
+        UiController.instance.DeathScreen.SetActive(false);
+        yield return new WaitForSeconds(waitAfterEnding);
+
+        if (!_perpetual)
+        {
+            PhotonNetwork.AutomaticallySyncScene = false;
+            PhotonNetwork.LeaveRoom();
+        }
+        else
+        {
+            if (PhotonNetwork.IsMasterClient)
+            {
+                if (!GameLauncher.instance.changeMapBtwRounds)
+                {
+                    NextMatchSend();
+                }
+                else
+                {
+                    int newLevel = Random.Range(0, GameLauncher.instance.levelToPlay.Length);
+
+                    if (GameLauncher.instance.levelToPlay[newLevel] == SceneManager.GetActiveScene().name)
+                    {
+                        NextMatchSend();
+                    }
+                    else
+                    {
+                        PhotonNetwork.LoadLevel(GameLauncher.instance.levelToPlay[newLevel]);
+                    }
+                }
+    
+            }
+        }
+
+    }
+
+    #endregion
+    
+    
     
 }
 

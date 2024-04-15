@@ -141,8 +141,18 @@ public class PlayerController : MonoBehaviourPunCallbacks
     {
         if (photonView.IsMine)
         {
-            cam.transform.position = viewPoint.position;
-            cam.transform.rotation = viewPoint.rotation;
+            if (MatchManager.instance._stateOfGame == MatchManager.StateOfGame.Playing)
+            {
+                cam.transform.position = viewPoint.position;
+                cam.transform.rotation = viewPoint.rotation;
+            }
+            else
+            {
+                cam = Camera.main;
+                cam.transform.position = MatchManager.instance.mapCamPoint.position;
+                cam.transform.rotation = MatchManager.instance.mapCamPoint.rotation;
+            }
+           
         }
     }
 
@@ -470,8 +480,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
             }
             else
             {
-                Instantiate(
-                    effectsGunOne[selectedGun1],
+                PhotonNetwork.Instantiate(
+                    effectsGunOne[selectedGun1].name,
                     hit.point,
                     Quaternion.identity
                 );
@@ -520,8 +530,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
             else
             {
                 
-                Instantiate(
-                    effectsGunTwo[selectedGun2],
+                PhotonNetwork.Instantiate(
+                    effectsGunTwo[selectedGun2].name,
                     hit.point,
                     Quaternion.identity
                 );

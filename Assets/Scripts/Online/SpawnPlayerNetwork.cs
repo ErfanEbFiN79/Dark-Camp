@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
+using System.Globalization;
 using Photon.Pun;
+using TMPro;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -13,26 +15,46 @@ public class SpawnPlayerNetwork : MonoBehaviourPunCallbacks
     [Header("Setting")]
     [SerializeField] private GameObject playerPr;
     [SerializeField] private Transform[] places;
+    [SerializeField] private TMP_Text textTimer;
     [SerializeField] private float respawnTime;
+    [SerializeField] private float respawnTimeShow;
     private GameObject player;
     
     [Header("Effects")]
     [SerializeField] private GameObject effectDie;
     #endregion
+    
 
     private void Awake()
     {
         instance = this;
+        
     }
 
     private void Start()
     {
+        respawnTimeShow = respawnTime;
         if (PhotonNetwork.IsConnected)
         {
             SpawnPlayer();
         }
     }
 
+    private void Update()
+    {
+        if (UiController.instance.DeathScreen.activeInHierarchy)
+        {
+            textTimer.text = (respawnTimeShow -= Time.deltaTime).ToString("F1");
+        }
+        else
+        {
+            respawnTimeShow = respawnTime;
+        }
+    }
+
+
+    public void SpawnP() => SpawnPlayer(); 
+    
     private void SpawnPlayer()
     {
         player = PhotonNetwork.Instantiate(
@@ -53,7 +75,11 @@ public class SpawnPlayerNetwork : MonoBehaviourPunCallbacks
         
         if (player != null)
         {
-            StartCoroutine(DieCo());
+            if (MatchManager.instance._stateOfGame != MatchManager.StateOfGame.Ending)
+            {
+                StartCoroutine(DieCo());
+            }
+
         }
     }
 
@@ -65,10 +91,16 @@ public class SpawnPlayerNetwork : MonoBehaviourPunCallbacks
             Quaternion.identity
         );
         PhotonNetwork.Destroy(player);
+        player = null;
         UiController.instance.DeathScreen.SetActive(true);
         yield return new WaitForSeconds(respawnTime);
         UiController.instance.DeathScreen.SetActive(false);
-        SpawnPlayer();
+
+        if (MatchManager.instance._stateOfGame == MatchManager.StateOfGame.Playing && player == null)
+        {
+            SpawnPlayer();
+        }
+
     }
     
 }
