@@ -25,9 +25,11 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
         ListPlayers,
         ChangeStat,
         NextMatch,
+        TimerSync,
     }
 
     
+    [Header("Base Setting")]
     public static MatchManager instance;
 
     public List<PlayerInfo> allPlayers = new List<PlayerInfo>();
@@ -51,9 +53,14 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     public Transform mapCamPoint;
     
     
-    // continue match variables
+    [Header("Condition")]
     [SerializeField] private bool _perpetual;
 
+    [Header("Time Setting")]
+    [SerializeField] private float gameLenght;
+    private float _currentMatchTime;
+    private float _sendTimer;
+    
     #endregion
 
     #region Unity Methods
@@ -78,6 +85,32 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
             
         }
 
+        if (PhotonNetwork.IsMasterClient)
+        {
+            if (_currentMatchTime >= 0f && _stateOfGame == StateOfGame.Playing)
+            {
+                _currentMatchTime -= Time.deltaTime;
+                if (_currentMatchTime <= 0)
+                {
+                    _currentMatchTime = 0;
+                    _stateOfGame = StateOfGame.Ending;
+                    ListPlayersSend();
+                    StateCheck();
+                }
+            
+                UpdateTimerDisplay();
+
+                _sendTimer -= Time.deltaTime;
+                if (_sendTimer <= 0)
+                {
+                    _sendTimer += 1f;
+                    TimerSend();
+                }
+            }
+        }
+        
+
+
     }
 
     private void Start()
@@ -91,6 +124,13 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
             NewPlayerSend(PhotonNetwork.NickName);
 
             _stateOfGame = StateOfGame.Playing;
+            
+            SetUpTimer();
+        }
+
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            UiController.instance.TimeText.gameObject.SetActive(false);
         }
     }
 
@@ -126,6 +166,12 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
                 case EventCodes.NextMatch:
                     
                     NextMatchReceive();
+                    
+                    break;
+                
+                case EventCodes.TimerSync:
+                    
+                    TimerReceive(data);
                     
                     break;
             }
@@ -171,6 +217,10 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     public void NextMatchSend() => NextMatchSendAction();
 
     public void NextMatchReceive() => NextMatchReceiveAction();
+
+    public void TimerSend() => TimerSendAction();
+
+    public void TimerReceive(object[] data) => TimerReceiveAction(data);
     
     #endregion
 
@@ -332,6 +382,29 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
         UpdateStateDisplay();
         
         SpawnPlayerNetwork.instance.SpawnP();
+        
+        SetUpTimer();
+    }
+
+    private void TimerSendAction()
+    {
+
+        object[] package = new object[] { (int)_currentMatchTime, _stateOfGame };
+        
+        PhotonNetwork.RaiseEvent(
+            (byte)EventCodes.TimerSync,
+            package,
+            new RaiseEventOptions { Receivers = ReceiverGroup.All },
+            new SendOptions { Reliability = true } 
+        );
+    }
+
+    private void TimerReceiveAction(object[] data)
+    {
+        _currentMatchTime = (int)data[0];
+        _stateOfGame = (StateOfGame)data[1];
+        UpdateTimerDisplay();
+        UiController.instance.TimeText.gameObject.SetActive(true);
     }
 
     #endregion
@@ -504,8 +577,25 @@ public class MatchManager : MonoBehaviourPunCallbacks, IOnEventCallback
     }
 
     #endregion
-    
-    
+
+    #region Time Work
+
+    private void SetUpTimer()
+    {
+        if (gameLenght > 0)
+        {
+            _currentMatchTime = gameLenght;
+            UpdateTimerDisplay();
+        }
+    }
+
+    private void UpdateTimerDisplay()
+    {
+        var time = System.TimeSpan.FromSeconds(_currentMatchTime);
+        UiController.instance.TimeText.text = time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00");
+    }
+
+    #endregion
     
 }
 

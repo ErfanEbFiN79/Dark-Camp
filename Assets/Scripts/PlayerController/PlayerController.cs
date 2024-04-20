@@ -77,6 +77,12 @@ public class PlayerController : MonoBehaviourPunCallbacks
     [SerializeField] private float maxHp;
     private float currentHp;
     
+    [Header("Skin")]
+    [SerializeField] private Material[] allSkins;
+
+    [Header("Fx")]
+    [SerializeField] private AudioSource walKFx;
+    
     #endregion  
 
     #region Unity Methods
@@ -102,7 +108,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
         
         photonView.RPC("SetGun1",RpcTarget.All, selectedGun1);
         photonView.RPC("SetGun2",RpcTarget.All, selectedGun2);
-        
+        gameObject.GetComponent<Renderer>().material = allSkins[photonView.Owner.ActorNumber % allSkins.Length];
     }
 
     private void Update()
@@ -179,10 +185,19 @@ public class PlayerController : MonoBehaviourPunCallbacks
         if (Input.GetKey(KeyCode.LeftShift))
         {
             activeMoveSpeed = runSpeed;
+            if (!walKFx.isPlaying && moveDir != Vector3.zero)
+            {
+                walKFx.Play();
+            }
         }
         else
         {
             activeMoveSpeed = moveSpeed;
+        }
+
+        if (moveDir == Vector3.zero || !cR.isGrounded)
+        {
+            walKFx.Stop();
         }
     }
 
@@ -223,7 +238,7 @@ public class PlayerController : MonoBehaviourPunCallbacks
         }
         else if (Cursor.lockState == CursorLockMode.None)
         {
-            if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+            if (Input.GetMouseButtonDown(0) && !UiController.instance.optionScreen.activeInHierarchy)
             {
                 Cursor.lockState = CursorLockMode.Locked;
             }
@@ -486,8 +501,8 @@ public class PlayerController : MonoBehaviourPunCallbacks
                     Quaternion.identity
                 );
             }
-
-
+            
+            
             
         }
 
@@ -501,6 +516,9 @@ public class PlayerController : MonoBehaviourPunCallbacks
             overHeated = true;
             
         }
+        
+        gunsHandOne[selectedGun1].ShotSound.Stop();
+        gunsHandOne[selectedGun1].ShotSound.Play();
     }
 
     private void Shot2()
@@ -548,6 +566,9 @@ public class PlayerController : MonoBehaviourPunCallbacks
             overHeated2 = true;
             
         }
+        
+        gunsHandTwo[selectedGun2].ShotSound.Stop();
+        gunsHandTwo[selectedGun2].ShotSound.Play();
     }
 
     private void SwitchGun()

@@ -56,7 +56,11 @@ public class GameLauncher : MonoBehaviourPunCallbacks
     private void Start()
     {
         LoadingManager(true, "Loading...");
-        PhotonNetwork.ConnectUsingSettings();
+        if (!PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.ConnectUsingSettings();
+        }
+
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }

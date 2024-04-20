@@ -49,3 +49,4 @@ MonoBehaviour:
   waitAfterEnding: 5
   mapCamPoint: {fileID: 0}
   _perpetual: 1
+  gameLenght: 15
